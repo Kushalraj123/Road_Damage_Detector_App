@@ -7,15 +7,22 @@ import 'package:routefixer/app_theme.dart';
 import 'package:routefixer/routes.dart';
 import 'package:routefixer/services/cameraservice.dart';
 import 'package:routefixer/services/fcm_service.dart';
+import 'package:routefixer/firebase_options.dart';
+import 'package:flutter_web_plugins/url_strategy.dart'
+    if (dart.library.io) 'package:routefixer/url_strategy_noop.dart';
 
 List<CameraDescription>? cameras; // global list of cameras
 
 Future<void> main() async {
+  usePathUrlStrategy();
   WidgetsBinding binding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: binding);
 
+
   // Initialize Firebase
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await FCMService.init();
   // Initialize cameras
   cameras = await availableCameras();
@@ -28,6 +35,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    FlutterNativeSplash.remove();
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Road Damage Detection',
