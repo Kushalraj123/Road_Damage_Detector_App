@@ -5,6 +5,11 @@ import 'package:routefixer/main.dart';
 import 'package:routefixer/navigation/main_page.dart';
 import 'package:routefixer/screens/add_details_cap.dart';
 import 'package:routefixer/screens/admin_login.dart';
+import 'package:routefixer/screens/admin_signup.dart';
+import 'package:routefixer/screens/edit_profile.dart';
+import 'package:routefixer/screens/settings.dart';
+import 'package:routefixer/screens/help.dart';
+import 'package:routefixer/screens/notificationscreen.dart';
 import 'package:routefixer/screens/repoartscreen.dart';
 import 'package:routefixer/screens/resetpassword.dart';
 import 'package:routefixer/screens/user_login.dart';
@@ -48,6 +53,11 @@ final GoRouter router = GoRouter(
       name: 'admin_login',
       builder: (context, state) => const AdminLogin(),
     ),
+    GoRoute(
+      path: '/admin_signup',
+      name: 'admin_signup',
+      builder: (context, state) => const AdminSignup(),
+    ),
 
     // ======================
     //   MAINPAGE (No camera)
@@ -56,6 +66,26 @@ final GoRouter router = GoRouter(
       path: '/mainpage',
       name: 'mainpage',
       builder: (context, state) => MainPage(cameras: cameras!),
+    ),
+    GoRoute(
+      path: '/edit-profile',
+      name: 'editProfile',
+      builder: (context, state) => const EditProfilePage(),
+    ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => const SettingsPage(),
+    ),
+    GoRoute(
+      path: '/notifications',
+      name: 'notifications',
+      builder: (context, state) => const NotificationsPage(),
+    ),
+    GoRoute(
+      path: '/help',
+      name: 'help',
+      builder: (context, state) => const HelpPage(),
     ),
 
     // ======================

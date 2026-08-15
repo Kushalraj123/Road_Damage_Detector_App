@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:routefixer/services/cameraservice.dart';
 import 'package:routefixer/services/report_service.dart';
@@ -469,20 +470,163 @@ class _RepoartscreenState extends State<Repoartscreen> {
       floatingActionButton: FloatingActionButton(
         heroTag: "reportFAB",
         onPressed: () {
-          final cams = CameraService().cameras;
-          if (cams.isNotEmpty) {
-            context.pushNamed("capture", extra: cams.first);
+          if (kIsWeb) {
+            _showWebReportDialog(context);
           } else {
-            availableCameras().then((cams) {
-              CameraService().setCameras(cams);
-              if (cams.isNotEmpty) {
-                context.pushNamed("capture", extra: cams.first);
-              }
-            });
+            final cams = CameraService().cameras;
+            if (cams.isNotEmpty) {
+              context.pushNamed("capture", extra: cams.first);
+            } else {
+              availableCameras().then((cams) {
+                CameraService().setCameras(cams);
+                if (cams.isNotEmpty) {
+                  context.pushNamed("capture", extra: cams.first);
+                } else {
+                  _showWebReportDialog(context);
+                }
+              }).catchError((e) {
+                _showWebReportDialog(context);
+              });
+            }
           }
         },
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  void _showWebReportDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    final gpsController = TextEditingController(text: "11.2588, 75.7804");
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.add_road, color: Colors.blue),
+                  SizedBox(width: 10),
+                  Text("Submit Damage Report"),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "No physical camera was detected. You can submit a simulated report below:",
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: "Damage Type",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: "Deep Pothole", child: Text("Deep Pothole")),
+                          DropdownMenuItem(value: "Major Cracks", child: Text("Major Cracks")),
+                          DropdownMenuItem(value: "Raveling Asphalt", child: Text("Raveling Asphalt")),
+                          DropdownMenuItem(value: "Faded Road Markings", child: Text("Faded Road Markings")),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            titleController.text = val;
+                          }
+                        },
+                        validator: (v) => v == null ? "Select damage type" : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: descController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: "Description",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty ? "Enter a description" : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: gpsController,
+                        decoration: InputDecoration(
+                          labelText: "GPS Coordinates",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.location_on),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty ? "Enter GPS coordinates" : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                isSubmitting
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: CircularProgressIndicator(),
+                      )
+                    : ElevatedButton(
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            final uid = firebaseUid ?? FirebaseAuth.instance.currentUser?.uid ?? "guest_uid";
+                            
+                            final response = await reportService.sendReport(
+                              firebaseUid: uid,
+                              imageFile: null,
+                              title: titleController.text.trim(),
+                              description: descController.text.trim(),
+                              gps: gpsController.text.trim(),
+                              time: DateTime.now().toIso8601String(),
+                            );
+                            
+                            if (response.statusCode == 201 || response.statusCode == 200) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Report submitted successfully!"),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              _onRefresh();
+                            } else {
+                              throw Exception("Failed to submit: Status ${response.statusCode}");
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Error submitting report: $e"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } finally {
+                            setDialogState(() => isSubmitting = false);
+                          }
+                        },
+                        child: const Text("Submit"),
+                      ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

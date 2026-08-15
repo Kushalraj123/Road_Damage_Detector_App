@@ -83,7 +83,7 @@ class ProfilePage extends StatelessWidget {
             onTap: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
-                context.goNamed("login"); // redirect to login page
+                context.goNamed("intro"); // redirect to intro page
               }
             },
           ),

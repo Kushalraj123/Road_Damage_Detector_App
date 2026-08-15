@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:routefixer/constants.dart';
 import 'package:routefixer/services/auth_service.dart';
 import 'package:routefixer/widgets/app_button.dart';
@@ -21,7 +22,7 @@ class _AdminLoginState extends State<AdminLogin> {
   final TextEditingController _emailcontroller = TextEditingController();
   final TextEditingController _passwordcontroller = TextEditingController();
 
-  // ✅ Allowed admin accounts
+  // ✅ Allowed hardcoded admin accounts
   final List<String> adminEmails = ["admin1@gmail.com", "admin2@gmail.com"];
 
   Future<void> _login() async {
@@ -32,8 +33,13 @@ class _AdminLoginState extends State<AdminLogin> {
       User? user = await _authService.signin(email, password);
 
       if (user != null) {
+        // Load the latest registered admins from SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final List<String> savedAdmins = prefs.getStringList('registered_admins') ?? [];
+        final List<String> allAdmins = [...adminEmails, ...savedAdmins];
+
         // ✅ Check if the logged-in email is in admin list
-        if (adminEmails.contains(user.email)) {
+        if (allAdmins.contains(user.email)) {
           debugPrint("Admin logged in successfully: ${user.email}");
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -160,6 +166,32 @@ class _AdminLoginState extends State<AdminLogin> {
                               vertical: 15,
                               horizontal: 30,
                             ),
+                          ),
+                          Divider(
+                            color: Colors.grey.shade400,
+                            thickness: 2,
+                            height: 40,
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "Don't have an admin account?",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  context.goNamed('admin_signup');
+                                },
+                                child: const Text(
+                                  'Register here',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

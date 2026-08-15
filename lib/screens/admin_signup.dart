@@ -9,57 +9,64 @@ import 'package:routefixer/widgets/app_button.dart';
 import 'package:routefixer/widgets/app_inputfield.dart';
 import '../services/auth_service.dart';
 
-class UserLogin extends StatefulWidget {
-  const UserLogin({super.key});
+class AdminSignup extends StatefulWidget {
+  const AdminSignup({super.key});
 
   @override
-  State<UserLogin> createState() => _UserLoginState();
+  State<AdminSignup> createState() => _AdminSignupState();
 }
 
-class _UserLoginState extends State<UserLogin> {
+class _AdminSignupState extends State<AdminSignup> {
   final AuthService _authService = AuthService();
   final _formkey = GlobalKey<FormState>();
   final TextEditingController _emailcontroller = TextEditingController();
   final TextEditingController _passwordcontroller = TextEditingController();
+  final TextEditingController _namecontroller = TextEditingController();
+  final TextEditingController _securityKeycontroller = TextEditingController();
 
-  Future<void> _login() async {
+  static const String _requiredSecurityKey = "ADMIN123";
+
+  Future<void> _signup() async {
     String email = _emailcontroller.text.trim();
     String password = _passwordcontroller.text.trim();
-    try {
-      User? user = await _authService.signin(email, password);
-      if (user != null) {
-        // Load allowed admin list to prevent admins from logging in as normal users
-        final prefs = await SharedPreferences.getInstance();
-        final List<String> savedAdmins = prefs.getStringList('registered_admins') ?? [];
-        final List<String> adminEmails = ["admin1@gmail.com", "admin2@gmail.com"];
-        final List<String> allAdmins = [...adminEmails, ...savedAdmins];
+    String name = _namecontroller.text.trim();
+    String securityKey = _securityKeycontroller.text.trim();
 
-        if (allAdmins.contains(user.email)) {
-          // Deny login for admin accounts on the user login screen
-          await FirebaseAuth.instance.signOut();
-          debugPrint("Access denied: Administrative account ${user.email} tried logging in as normal user.");
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Access denied: Administrative accounts must use Admin Login"),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          debugPrint("User logged in successfully: ${user.email}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully logged in!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          context.goNamed('mainpage');
+    if (securityKey != _requiredSecurityKey) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Invalid Admin Security Key!"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      User? user = await _authService.signup(email, password, name);
+      if (user != null) {
+        // Save the registered email persistently as an allowed admin email
+        final prefs = await SharedPreferences.getInstance();
+        final List<String> currentAdmins = prefs.getStringList('registered_admins') ?? [];
+        if (!currentAdmins.contains(email)) {
+          currentAdmins.add(email);
+          await prefs.setStringList('registered_admins', currentAdmins);
         }
+
+        debugPrint("Admin signed up successfully: ${user.email}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Administrative account successfully registered!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.goNamed('mainpage');
       }
     } catch (e) {
-      debugPrint("Login failed: $e");
+      debugPrint("Admin Sign up failed: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Incorrect Username or Password"),
+          content: Text("Admin Registration Failed: ${e.toString()}"),
           backgroundColor: Colors.red,
         ),
       );
@@ -72,9 +79,7 @@ class _UserLoginState extends State<UserLogin> {
       appBar: AppBar(
         title: const Text('RouteFixer'),
         leading: IconButton(
-          onPressed: () {
-            context.goNamed('intro');
-          },
+          onPressed: () => context.goNamed('intro'),
           icon: const Icon(Icons.arrow_back),
         ),
       ),
@@ -96,16 +101,32 @@ class _UserLoginState extends State<UserLogin> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(
-                            'Login',
+                            'Admin Sign Up',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
-                              fontSize: 36,
+                              fontSize: 32,
                             ),
                           ),
                           const SizedBox(height: 30),
+
+                          // Name
                           AppInputField(
-                            label: "email",
+                            label: "Name",
+                            controller: _namecontroller,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Please enter your name";
+                              }
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Email
+                          AppInputField(
+                            label: "Email",
                             controller: _emailcontroller,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -117,9 +138,12 @@ class _UserLoginState extends State<UserLogin> {
                               return null;
                             },
                           ),
+
                           const SizedBox(height: 20),
+
+                          // Password
                           AppInputField(
-                            label: 'password',
+                            label: 'Password',
                             controller: _passwordcontroller,
                             isPassword: true,
                             validator: (value) {
@@ -132,54 +156,60 @@ class _UserLoginState extends State<UserLogin> {
                               return null;
                             },
                           ),
-                          TextButton(
-                            onPressed: () {
-                              context.goNamed('reset-password');
-                            },
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+
                           const SizedBox(height: 20),
+
+                          // Admin Security Key
+                          AppInputField(
+                            label: 'Admin Security Key',
+                            controller: _securityKeycontroller,
+                            isPassword: true,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Please enter the Admin Security Key";
+                              }
+                              if (value != _requiredSecurityKey) {
+                                return "Incorrect Admin Security Key";
+                              }
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 25),
+
+                          // Sign Up Button
                           AppElevatedButton(
                             onPressed: () {
                               if (_formkey.currentState!.validate()) {
-                                debugPrint(
-                                  "Form is valid, proceeding to login",
-                                );
-                                _login();
-                              } else {
-                                debugPrint("Form is not valid");
+                                _signup();
                               }
                             },
-                            label: 'Login',
+                            label: 'Register Admin',
                             padding: const EdgeInsets.symmetric(
                               vertical: 15,
                               horizontal: 30,
                             ),
                           ),
+
                           Divider(
                             color: Colors.grey.shade400,
                             thickness: 2,
                             height: 40,
                           ),
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Text(
-                                "Don't have an account?",
+                                "Already registered?",
                                 style: TextStyle(fontSize: 16),
                               ),
                               TextButton(
                                 onPressed: () {
-                                  context.goNamed('signup');
+                                  context.goNamed('admin_login');
                                 },
                                 child: const Text(
-                                  'Sign Up',
+                                  'Login',
                                   style: TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.bold,

@@ -9,14 +9,14 @@ import 'package:routefixer/services/report_service.dart';
 import 'package:routefixer/widgets/app_inputfield.dart';
 
 class AddDetailsPage extends StatefulWidget {
-  final File imageFile;
+  final File? imageFile;
   final String gps;
   final String time;
   final String firebaseUid;
 
   const AddDetailsPage({
     super.key,
-    required this.imageFile,
+    this.imageFile,
     required this.gps,
     required this.time,
     required this.firebaseUid,
@@ -135,11 +135,17 @@ class _AddDetailsPageState extends State<AddDetailsPage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  widget.imageFile,
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
+                child: widget.imageFile != null
+                    ? Image.file(
+                        widget.imageFile!,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.network(
+                        "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?q=80&w=400",
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
               ),
               const SizedBox(height: 12),
               Text('Time: ${widget.time}'),
